@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>极简目录修复 · 直角工具栏</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background: #f2f2f2;
+            padding: 12px;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* 完全直角，无圆角 */
+        .toolbar, .card, textarea, input, select, button, .preview-box, .file-row {
+            border-radius: 0 !important;
+            border: 1px solid #aaa;
+        }
+        .container {
+            background: white;
+            border: 1px solid #888;
+            padding: 16px 12px;
+            margin-bottom: 12px;
+        }
+        .file-row {
+            display: flex;
+            align-items: center;
+            background: white;
+            border: 1px solid #888;
+            margin-bottom: 12px;
+        }
+        .file-label {
+            background: #d0d0d0;
+            padding: 12px 16px;
+            font-size: 1rem;
+            font-weight: 500;
+            cursor: pointer;
+            border-right: 1px solid #888;
+            white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+        }
+        .file-label:active {
+            background: #b5b5b5;
+        }
+        #file-name {
+            flex: 1;
+            padding: 0 12px;
+            font-size: 0.95rem;
+            color: #222;
+            word-break: break-word;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        textarea {
+            width: 100%;
+            border: 1px solid #888;
+            background: white;
+            padding: 14px 12px;
+            font-size: 1rem;
+            line-height: 1.5;
+            resize: vertical;
+            min-height: 120px;
+            margin-bottom: 12px;
+        }
+        /* 工具栏：下拉 + 输入框 + 按钮 一排 */
+        .toolbar-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-bottom: 12px;
+            align-items: center;
+            background: transparent;
+        }
+        select, input[type="text"], .toolbar-row button {
+            border: 1px solid #888;
+            background: white;
+            padding: 12px 10px;
+            font-size: 1rem;
+            height: 48px;
+            -webkit-appearance: none;
+            appearance: none;
+            flex: 1 0 auto;
+            min-width: 140px;
+        }
+        select {
+            background: #f0f0f0;
+            padding-right: 24px; /* 留一点空间给下拉箭头 */
+        }
+        .toolbar-row button {
+            background: #d8d8d8;
+            font-weight: 500;
+            cursor: pointer;
+            flex: 0 1 auto;
+            padding: 0 18px;
+            border: 1px solid #888;
+            white-space: nowrap;
+        }
+        .toolbar-row button:active {
+            background: #bebebe;
+        }
+        .action-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 10px 0 12px;
+        }
+        .action-row button {
+            flex: 1 1 0;
+            min-width: 120px;
+            background: #d0d0d0;
+            border: 1px solid #888;
+            padding: 14px 10px;
+            font-size: 1.1rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .action-row button:active {
+            background: #b5b5b5;
+        }
+        .action-row button.download {
+            background: #b0b0b0;
+            font-weight: 600;
+        }
+        .preview-box {
+            border: 1px solid #888;
+            background: #fafafa;
+            padding: 16px 14px;
+            font-size: 0.95rem;
+            white-space: pre-wrap;
+            word-break: break-word;
+            max-height: 260px;
+            overflow-y: auto;
+            color: #111;
+            line-height: 1.4;
+        }
+        .preview-header {
+            display: flex;
+            justify-content: space-between;
+            margin: 12px 0 4px;
+            font-weight: 500;
+            color: #111;
+        }
+        hr {
+            border: none;
+            border-top: 2px solid #aaa;
+            margin: 8px 0;
+        }
+        /* 隐藏所有多余的标签、提示 */
+        .hidden-label {
+            display: none;
+        }
+        /* 移动端点击去掉高亮 */
+        button, select, .file-label {
+            -webkit-tap-highlight-color: transparent;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- 文件行 -->
+        <div class="file-row">
+            <label for="fileInput" class="file-label">📁 选择文件</label>
+            <span id="file-name">未选择</span>
+            <input type="file" id="fileInput" accept=".txt,.html,.md,text/plain">
+        </div>
+
+        <!-- 文本编辑区 -->
+        <textarea id="textInput" placeholder="粘贴或编辑文本… 预览查看效果">第一章 觉醒
+第二章 旅途
+第一百二十三、重逢
+
+又及：多余空行
+
+
+
+测试行</textarea>
+
+        <!-- 工具栏：下拉模板 + 查找输入框 + 替换输入框 -->
+        <div class="toolbar-row">
+            <select id="templateSelect">
+                <option value="1" selected>数字/中文顿号 → 第$1章</option>
+                <option value="2">压缩多余空行(≥3转2)</option>
+                <option value="3">自定义(手动输入)</option>
+            </select>
+            <input type="text" id="patternInput" placeholder="查找正则 (自动/g)" value="([0-9一二三四五六七八九十百千万]+)、">
+            <input type="text" id="replacementInput" placeholder="替换内容" value="第$1章">
+        </div>
+
+        <!-- 操作行：预览 & 下载 -->
+        <div class="action-row">
+            <button id="previewBtn">👁 预览</button>
+            <button id="downloadBtn" class="download">⬇ 下载 + 时间戳</button>
+        </div>
+
+        <!-- 预览区标题和内容 -->
+        <div class="preview-header">
+            <span>📋 预览 (替换后·前1000字符)</span>
+        </div>
+        <div id="preview" class="preview-box">点击预览查看效果</div>
+        <hr>
+        <div style="color:#444; font-size:0.85rem;">全部在本地完成 · 无网络传输</div>
+    </div>
+
+    <script>
+        (function() {
+            // DOM 元素
+            const fileInput = document.getElementById('fileInput');
+            const fileNameSpan = document.getElementById('file-name');
+            const textArea = document.getElementById('textInput');
+            const templateSelect = document.getElementById('templateSelect');
+            const patternInput = document.getElementById('patternInput');
+            const replacementInput = document.getElementById('replacementInput');
+            const previewBtn = document.getElementById('previewBtn');
+            const downloadBtn = document.getElementById('downloadBtn');
+            const previewDiv = document.getElementById('preview');
+
+            // 当前原始文本 (同步textarea)
+            let currentRawText = textArea.value;
+
+            // 模板定义 (只填充查找和替换)
+            const templates = {
+                '1': {   // 数字/中文数字+顿号 → 第$1章
+                    pattern: '([0-9一二三四五六七八九十百千万]+)、',
+                    replacement: '第$1章'
+                },
+                '2': {   // 压缩多余空行：连续三个及以上换行替换为两个换行
+                    pattern: '\\n{3,}',
+                    replacement: '\n\n'
+                },
+                '3': {   // 自定义，保留用户上次输入，不作更改
+                    pattern: null,
+                    replacement: null
+                }
+            };
+
+            // 监听模板切换
+            templateSelect.addEventListener('change', function() {
+                const val = templateSelect.value;
+                if (val === '3') return; // 自定义，不动
+                const tmpl = templates[val];
+                if (tmpl) {
+                    patternInput.value = tmpl.pattern;
+                    replacementInput.value = tmpl.replacement;
+                }
+            });
+
+            // 文件选择与读取
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) {
+                    fileNameSpan.textContent = '未选择';
+                    return;
+                }
+                fileNameSpan.textContent = file.name;
+
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    textArea.value = ev.target.result;
+                    currentRawText = ev.target.result;
+                };
+                reader.readAsText(file, 'UTF-8');
+            });
+
+            // 同步textarea修改
+            textArea.addEventListener('input', function() {
+                currentRawText = textArea.value;
+            });
+
+            // 构建正则 (固定使用 g 标志，忽略用户手动输入flag)
+            function buildRegex() {
+                let pattern = patternInput.value.trim();
+                if (pattern === '') return null;
+                // 移除用户可能自带的 /.../g 格式，只取内部内容
+                // 简单处理：如果以/开头和/g结尾，提取中间，但为了简单，直接使用原字符串并添加g
+                // 同时转义处理？new RegExp 会对字符串转义，用户需要写原始正则文本，如 \d 需写 \\d？但为了直观，我们用用户输入直接构造，他们需要了解正则转义。
+                // 这里保持简单：使用用户输入字符串，并添加g标志。
+                try {
+                    return new RegExp(pattern, 'g');
+                } catch (e) {
+                    alert('正则无效: ' + e.message);
+                    return null;
+                }
+            }
+
+            // 执行替换，返回完整替换后文本
+            function getReplacedText(original) {
+                const regex = buildRegex();
+                if (!regex) return original;  // 无效正则，返回原文
+                const replacement = replacementInput.value;
+                return original.replace(regex, replacement);
+            }
+
+            // 更新预览
+            function updatePreview() {
+                const raw = textArea.value;
+                const replaced = getReplacedText(raw);
+                const previewText = replaced.slice(0, 1000);
+                previewDiv.textContent = previewText + (replaced.length > 1000 ? '……' : '');
+            }
+
+            // 预览按钮
+            previewBtn.addEventListener('click', function() {
+                updatePreview();
+            });
+
+            // 下载按钮 (带时间戳)
+            downloadBtn.addEventListener('click', function() {
+                const raw = textArea.value;
+                if (!raw.trim()) {
+                    alert('没有可保存的内容');
+                    return;
+                }
+                const replaced = getReplacedText(raw);
+                // 生成时间戳: YYYYMMDD-HHmmss
+                const now = new Date();
+                const year = now.getFullYear();
+                const month = String(now.getMonth() + 1).padStart(2, '0');
+                const day = String(now.getDate()).padStart(2, '0');
+                const hours = String(now.getHours()).padStart(2, '0');
+                const minutes = String(now.getMinutes()).padStart(2, '0');
+                const seconds = String(now.getSeconds()).padStart(2, '0');
+                const timestamp = `${year}${month}${day}-${hours}${minutes}${seconds}`;
+
+                // 生成文件名
+                let baseName = `修复目录_${timestamp}.txt`;
+                if (fileInput.files.length > 0 && fileInput.files[0].name) {
+                    const fullName = fileInput.files[0].name;
+                    const lastDot = fullName.lastIndexOf('.');
+                    if (lastDot > 0) {
+                        const namePart = fullName.substring(0, lastDot);
+                        const extPart = fullName.substring(lastDot);
+                        baseName = `${namePart}_${timestamp}${extPart}`;
+                    } else {
+                        baseName = `${fullName}_${timestamp}.txt`;
+                    }
+                }
+
+                // Blob下载
+                const blob = new Blob([replaced], { type: 'text/plain;charset=utf-8' });
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(blob);
+                link.download = baseName;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(link.href);
+            });
+
+            // 初始预览一次（让界面有内容）
+            setTimeout(updatePreview, 30);
+
+            // 可选：当用户修改查找/替换时，不自动预览，保持预览按钮触发。
+        })();
+    </script>
+</body>
+</html>
